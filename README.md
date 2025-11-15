@@ -153,7 +153,10 @@ Generated visualizations include:
 These plots demonstrate:
 - Excellent trend capture  
 - Strong seasonal modeling  
-- Accurate SKU-level and total forecasts  
+- Accurate SKU-level and total forecasts
+
+  <img width="1231" height="734" alt="image" src="https://github.com/user-attachments/assets/9faf66d1-ba2e-4f7e-b38d-d41c81b64b5a" />
+
 
 ---
 
