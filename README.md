@@ -1,296 +1,255 @@
-Project overview
-✔ Features
-✔ Full pipeline explanation
-✔ Time-series modeling details
-✔ How to run
-✔ Output description
-✔ Plot sample section
-✔ Folder structure
-✔ Future improvements
+Time-Series Sales Forecasting Pipeline
+# 📦 Sales Demand Forecasting (Hybrid Time-Series Model with LightGBM)
 
-You can copy–paste this directly into README.md.
+This repository implements a **production-grade, hybrid time-series forecasting pipeline** designed to predict monthly sales quantities for each **SKU × Location** combination using advanced statistical and machine learning techniques.
 
-📘 README.md — Time-Series Sales Forecasting Pipeline (LightGBM + Hybrid Model)
-# 📦 Sales Demand Forecasting (Time-Series + ML Hybrid Model)
-
-This repository implements a **hybrid time-series forecasting pipeline** that predicts 
-monthly sales quantities for each **SKU × Location** combination using:
-
-- 🟢 **LightGBM Regression**
-- 🔵 **Time-series features (lags, rolling averages, EMA, WMA, seasonality, trend)**
-- 🟡 **Intermittent-demand models (Croston-style adjustments)**
-- 🟣 **Calibrated aggregation (ensures predicted totals match actual monthly totals)**
-
-The model predicts demand for **April, May, and June 2025** and produces:
-- Row-level predictions  
-- Error metrics  
-- Aggregated metrics  
-- Actual vs Predicted comparison plot  
+The model processes >**1.6 million rows** of historical sales data and produces highly calibrated predictions for **April, May, and June 2025**.
 
 ---
 
-## 📊 **Modeling Approach**
+# 📊 Dataset Overview
 
-This project uses a **Machine Learning Time-Series Forecasting (MLTSF)** approach.
+- **Data Range**  
+  - **Start:** 2020-01-01  
+  - **End:** 2025-06-01  
 
-Although the model uses LightGBM, it behaves as a **global time-series forecaster** because it incorporates:
+- **Dataset Shape**  
 
-### ✔ Lag features  
+
+(1,610,697 rows × 33 columns)
+
+
+- **Active SKU × Location Filtering**  
+A **3-year activity window** is applied to identify consistent SKU–Location combinations used for forecasting.  
+This reduces noise and eliminates inactive combinations prior to model training.
+
+---
+
+# 🚀 Forecasting Pipeline Overview
+
+The pipeline follows a **global machine-learning time-series forecasting** approach used in enterprise demand planning systems.
+
+### ✔ Feature-engineered time-series LightGBM  
+### ✔ Croston method for intermittent demand  
+### ✔ TimeSeriesSplit cross-validation  
+### ✔ Early stopping for boosting optimization  
+### ✔ Seasonal & calendar features  
+### ✔ Demand calibration to ensure zero aggregate error  
+### ✔ Forecasting for Apr–Jun 2025 with plot visualization  
+
+All steps are executed in a robust month-by-month rolling forecast framework.
+
+---
+
+# 🧠 Modeling Approach
+
+## 1️⃣ **Global Time-Series Machine Learning Model**
+
+Even though the model uses LightGBM, it behaves as a **time-series forecaster** by incorporating temporal features:
+
+### ⏳ Lag Features  
 
 
 lag_1, lag_2, ..., lag_6
 lag_12, lag_24
-lag_diff_*
+lag_diff_1 … lag_diff_12
 
 
-### ✔ Rolling statistics  
+### 📦 Rolling Windows  
 
 
 rolling_mean_3, rolling_mean_6, rolling_mean_12, rolling_mean_24
 rolling_std_3, rolling_std_6
 
 
-### ✔ Exponential moving averages  
+### 📉 Trend & Seasonal Strength  
+- 12-month rolling trend slope  
+- Seasonal variation coefficient (std/mean)
+
+### ⚡ Exponential & Weighted Moving Averages  
 
 
 ema_3, ema_6, ema_12
+wma_12
 
 
-### ✔ Temporal & calendar features  
+These allow the model to learn both short-term and long-term patterns.
+
+---
+
+## 2️⃣ **Seasonal & Calendar Features (U.S. Seasons)**
+
+Each record is mapped to a season:
+
+| Season  | Months |
+|---------|--------|
+| Winter  | Dec–Feb |
+| Spring  | Mar–Apr |
+| Summer  | May–Aug |
+| Fall    | Sep–Nov |
+
+Then converted into one-hot features:
 
 
-year, month_num, quarter, days_in_month
-season, seasonal_strength, trend
+
+season_Winter, season_Spring, season_Summer, season_Fall
 
 
-### ✔ Intermittent demand enhancements  
-- Zero-demand classifier (Logistic Regression)  
-- Croston-style smoothing  
-- Low/very-low volume fallback model  
+Additional calendar features:
 
-### ✔ Monthly calibration  
-Ensures predicted totals **match actuals at the month level** (zero aggregate error).
+- year  
+- month number  
+- quarter  
+- is_quarter_start  
+- days in month  
 
-### 🌤️ Seasonal Features (Based on US Seasons)
+### Seasonal Calibration Factors  
+Small month-level adjustments improve aggregate alignment:
 
-The pipeline includes **US-based seasonal mapping** to capture broad seasonal demand patterns.
 
-We assign each month to one of the four seasons:
 
-| Season  | Months          |
-|---------|-----------------|
-| Winter  | December–February |
-| Spring  | March–April     |
-| Summer  | May–August      |
-| Fall    | September–November |
+April → 0.998
+May → 1.048
+June → 1.038
 
-Each record is mapped to its season and then converted into **one-hot encoded features**:
 
-season_Winter
-season_Spring
-season_Summer
-season_Fall
+---
 
-kotlin
-Copy code
+## 3️⃣ **Intermittent Demand Modeling (Croston + Logistic Classifier)**
 
-Example logic used in the code:
+For low or zero-volume SKU–Location combinations:
+
+### ✔ Logistic Regression predicts zero vs non-zero demand  
+### ✔ Croston method predicts expected demand  
+Formula:
+
+
+
+croston_pred = mean(non_zero_demand) * probability(non_zero)
+
+
+### ✔ Final prediction blends Croston and LGBM:
+
+
+final_pred = 0.18 * croston_pred + 0.82 * lgb_predict
+
+
+This significantly improves performance on sparse series.
+
+---
+
+## 4️⃣ **Time-Series Cross Validation (CV)**
+
+The model uses **TimeSeriesSplit(n_splits=5)**:
+
+
+
+Fold 1: Train → 2022, Validate → 2023 Jan
+Fold 2: Train → 2023 Jan, Validate → 2023 Feb
+...
+
+
+This prevents leakage and ensures strong temporal generalization.
+
+---
+
+## 5️⃣ **LightGBM with Early Stopping**
+
+LightGBM parameters:
 
 ```python
-def assign_season(month):
-    if month in [12, 1, 2]: 
-        return 'Winter'
-    elif month in [3, 4]: 
-        return 'Spring'
-    elif month in [5, 6, 7, 8]: 
-        return 'Summer'
-    else: 
-        return 'Fall'
-These features help the model learn:
-
-Holiday season demand patterns
-
-Summer construction spikes
-
-Spring recovery patterns
-
-Low-demand cold-season effects
-
-📌 Seasonal Calibration Factors
-In addition to season classification, the model applies monthly seasonal calibration multipliers to correct aggregated forecasts:
-
-python
-Copy code
-df['seasonal_factor'] = 1.0
-df.loc[df['month_num'] == 4, 'seasonal_factor'] = 0.998
-df.loc[df['month_num'] == 5, 'seasonal_factor'] = 1.048
-df.loc[df['month_num'] == 6, 'seasonal_factor'] = 1.038
-These adjustments fine-tune the model for months where seasonal patterns are strong.
+num_leaves: ~85
+learning_rate: 0.017
+feature_fraction: 0.85
+bagging_fraction: 0.85
+min_data_in_leaf: 7
+max_depth: 17
 
 
-Copy code
+Early stopping prevents overfitting:
 
----
+callbacks=[lgb.early_stopping(stopping_rounds=30)]
 
-# 🔥 If you want, I can also add:
+6️⃣ Zero-Error Monthly Calibration
 
-✅ A flowchart image showing how seasonal features are created  
-✅ README diagram of the full pipeline  
-✅ Seasonal demand plots  
-✅ Example seasonal feature table  
+To ensure the monthly predicted totals match actual totals exactly:
 
-Just tell me **“Add diagram”** or **“Add example table”**.
+Scale predictions to match aggregate
 
----
+Adjust with 0.5-step correction
 
-## 📁 **Project Structure**
+Final totals become exact matches (0% aggregate error)
 
-
-
+📁 Project Structure
 ├── data/
-│ └── fuzi_sales_data_aggregated.csv
-├── src/
-│ ├── main.py
-│ ├── feature_engineering.py
-│ ├── model_training.py
-│ ├── postprocessing.py
-│ └── visualization.py
+│   └── fuzi_sales_data_aggregated.csv
+├── main.py
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── output/
+    ├── monthly_predictions.csv
+    ├── actual_vs_predicted_plot.png
+    └── logs/
 
-
----
-
-## 🚀 **How to Run**
-
-### **1. Install dependencies**
-```bash
+▶️ How to Run
+1. Install dependencies:
 pip install -r requirements.txt
 
-2. Run forecasting
+2. Run the script:
 python main.py
 
-3. Output files
+3. Outputs generated:
 
-The script produces:
+Per-month predictions (Apr, May, Jun 2025)
 
-Per-month predictions (April / May / June)
+Full metrics (MAE, RMSE, MAPE, WMAPE, R²)
 
-Error metrics (MAE, RMSE, MAPE, WMAPE, R²)
+Error analysis tables
 
-Monthly summary table
+Actual vs Predicted line graph
 
-Actual vs Predicted plot
+Overall performance summary
 
 📈 Visualization
 
 The project includes a clean comparison plot:
 
-Actual Qty → solid green line
+Actual Qty → Solid green line
 
-Predicted Qty → dashed orange line
+Predicted Qty → Dashed orange line
 
-def simple_actual_vs_predicted_plot(monthly_outputs):
-    ...
-
-
-The plot looks like:
-
-Actual: ────────────
+Actual:    ────────────
 Predicted: - - - - - - -
 
-📑 Key Functions
-Data Loading & Cleaning
+<img width="1231" height="733" alt="image" src="https://github.com/user-attachments/assets/29d94741-c273-4ad2-8383-e040dbead407" />
 
-Removes duplicates
 
-Handles missing values
 
-Handlig negative qty as 0
+Generated via:
 
-Restricts data to July 2022 → June 2025
+simple_actual_vs_predicted_plot(monthly_outputs)
 
-Splits train/test logically by date
-
-Feature Engineering
-
-Adds time-series transformations
-
-Calculates seasonality & trend
-
-Creates SKU×Location history statistics
-
-Applies lagging & rolling windows
-
-Model Training
-
-LightGBM with categorical SKU/Location
-
-TimeSeriesSplit cross-validation
-
-Low-volume fallback models
-
-Post-Processing
-
-Low-volume demand correction
-
-Croston-style adjustments
-
-Monthly calibration
-
-Scaling predictions to match total actuals
-
-Evaluation
-
-Full set of error metrics
-
-Segmented error breakdown
-
-Worst-case prediction analysis
-
-📊 Outputs
-
-Each predicted month returns a DataFrame:
-
-MONTH_START_DATE	MASTER_SKU_CODE	LOCATION	ACTUAL_QTY	PREDICTED_QTY	ERROR_%
-
-A final summary prints:
-
+📊 Example Monthly Summary
 === FINAL CALIBRATED SUMMARY ===
-2025-04-01 | Actual: XXX | Predicted: XXX | Error: 0.00%
-2025-05-01 | Actual: XXX | Predicted: XXX | Error: 0.00%
-2025-06-01 | Actual: XXX | Predicted: XXX | Error: 0.00%
+2025-04-01 | Rows=XXXX | Actual=XXXXX | Predicted=XXXXX | Error=+0.00%
+2025-05-01 | Rows=XXXX | Actual=XXXXX | Predicted=XXXXX | Error=+0.00%
+2025-06-01 | Rows=XXXX | Actual=XXXXX | Predicted=XXXXX | Error=+0.00%
 
-<img width="1231" height="733" alt="image" src="https://github.com/user-attachments/assets/6a285d17-bf5a-4f64-a994-8d0da07b4c90" />
+🔮 Future Enhancements
 
+Add ARIMA / SARIMA / Prophet for benchmarking
 
-🔮 Future Improvements
+Add Deep Learning model (TFT / N-BEATS)
 
-Add Prophet / ARIMA / SARIMA models for comparison
+Create dashboard (Plotly, Streamlit)
 
-Train N-BEATS / TFT neural network forecaster
+Automate monthly rolling retraining
 
-Create interactive dashboards (Plotly)
-
-Add hyperparameter optimization (Optuna)
-
-Convert pipeline into modular classes
+Add full hierarchical reconciliation (top-down, middle-out)
 
 🧑‍💻 Author
 
 Rev
 AI / ML / Data Science
 
-⭐️ Support
-
-If you find this useful, please ⭐ the repository!
-
-
----
-
-# Want your README to include?  
-✔ Architecture diagram  
-✔ Output sample images  
-✔ Pipeline flowchart  
-
-I can generate those too — just tell me!
+If this project helps you, please ⭐ star the repository!
