@@ -171,3 +171,48 @@ This generates **business-ready, trustworthy forecasts**.
 ### 1️⃣ Create & activate virtual environment
 
 ### 2️⃣ Install requirements
+
+### 3️⃣ Run the main forecasting code
+*(File name may vary based on your structure.)*
+
+### 4️⃣ Open notebooks for analysis
+Use Jupyter or VS Code.
+
+---
+
+## 📁 Folder Structure
+
+*(Client data is intentionally excluded.)*
+
+---
+
+## 📦 Requirements Installation
+All required packages are listed in:
+
+---
+
+## 🔮 Future Improvements
+- Add Prophet / SARIMAX comparison models  
+- Automatic hyperparameter search (Optuna)  
+- Deployment via FastAPI or Streamlit  
+- Real-time forecasting pipeline  
+- Model monitoring dashboard  
+
+---
+
+## ⚠️ Limitations
+- Client data not included  
+- Performance depends on SKU demand quality  
+- Extreme outlier events may need special handling  
+
+---
+
+## 👤 Author
+**Revathi**  
+AI / ML / Data Science Practitioner  
+GitHub: https://github.com/REVATHIRAGUNATHAN91
+
+---
+
+
+
